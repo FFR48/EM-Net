@@ -139,6 +139,10 @@ class FFParser_n(nn.Module):
 
         x = x.reshape(B, C, H, W, D)
 
+        with torch.no_grad():
+            max_mag = self.complex_weight.abs().max()
+            self.complex_weight.div_(max_mag.clamp(min=1.0))
+
         return x
 
 class Spectral_Layer(nn.Module):
