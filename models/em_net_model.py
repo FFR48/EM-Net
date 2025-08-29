@@ -132,10 +132,10 @@ class FFParser_n(nn.Module):
 
         # x = x.view(B, a, b, C)
         x = x.to(torch.float32)
-        x = torch.fft.rfftn(x, dim=(2, 3, 4), norm='ortho')
+        x = torch.fft.rfftn(x, dim=(2, 3, 4), norm="ortho")
         weight = torch.view_as_complex(self.complex_weight)
         x = x * weight
-        x = torch.fft.irfftn(x, s=(H, W, D), dim=(2, 3, 4), norm='ortho')
+        x = torch.fft.irfftn(x, s=(H, W, D), dim=(2, 3, 4), norm="ortho")
 
         x = x.reshape(B, C, H, W, D)
 

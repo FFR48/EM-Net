@@ -84,6 +84,14 @@ def train_epoch(model, loader, optimizer, scaler, epoch, loss_func, args):
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
+
+        with torch.no_grad():
+            mod = model.module if args.distributed else model
+            for m in mod.modules():
+                if hasattr(m, "complex_weight"):
+                    w = torch.view_as_complex(m.complex_weight)
+                    w = w / w.abs().amax().clamp_min(1.0)
+                    m.complex_weight.copy_(torch.view_as_real(w))
         if args.distributed:
             loss_list = distributed_all_gather([loss], out_numpy=True, is_valid=idx < loader.sampler.valid_length)
             run_loss.update(
@@ -140,11 +148,23 @@ def train_epoch_by_iter(model, loader, optimizer, scaler, epoch, loss_func, args
                 loss = loss_func(logits, target)
         if args.amp:
             scaler.scale(loss).backward()
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             scaler.step(optimizer)
             scaler.update()
         else:
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
+
+        with torch.no_grad():
+            mod = model.module if args.distributed else model
+            for m in mod.modules():
+                if hasattr(m, "complex_weight"):
+                    w = torch.view_as_complex(m.complex_weight)
+                    w = w / w.abs().amax().clamp_min(1.0)
+                    m.complex_weight.copy_(torch.view_as_real(w))
+
         if args.distributed:
             loss_list = distributed_all_gather([loss], out_numpy=True, is_valid=idx < loader.sampler.valid_length)
             run_loss.update(
