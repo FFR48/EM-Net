@@ -84,6 +84,7 @@ def train_epoch(model, loader, optimizer, scaler, epoch, loss_func, args):
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
+
         if args.distributed:
             loss_list = distributed_all_gather([loss], out_numpy=True, is_valid=idx < loader.sampler.valid_length)
             run_loss.update(
@@ -148,6 +149,8 @@ def train_epoch_by_iter(model, loader, optimizer, scaler, epoch, loss_func, args
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
+
+
         if args.distributed:
             loss_list = distributed_all_gather([loss], out_numpy=True, is_valid=idx < loader.sampler.valid_length)
             run_loss.update(
