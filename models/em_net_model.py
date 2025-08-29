@@ -26,12 +26,12 @@ from mamba_ssm import Mamba
 import torch.nn.functional as F 
 
 class LayerNorm(nn.Module):
-    r""" LayerNorm that supports two data formats: channels_last (default) or channels_first.
+    r"""LayerNorm that supports two data formats: channels_last (default) or channels_first.
     The ordering of the dimensions in the inputs. channels_last corresponds to inputs with
     shape (batch_size, height, width, channels) while channels_first corresponds to inputs
-    with shape (batch_size, channels, height, width).
-    """
-    def __init__(self, normalized_shape, eps=1e-6, data_format="channels_last"):
+    with shape (batch_size, channels, height, width)."""
+
+    def __init__(self, normalized_shape, eps=1e-5, data_format="channels_last"):
         super().__init__()
         self.weight = nn.Parameter(torch.ones(normalized_shape))
         self.bias = nn.Parameter(torch.zeros(normalized_shape))
@@ -39,17 +39,19 @@ class LayerNorm(nn.Module):
         self.data_format = data_format
         if self.data_format not in ["channels_last", "channels_first"]:
             raise NotImplementedError
-        self.normalized_shape = (normalized_shape, )
+        self.normalized_shape = (normalized_shape,)
 
     def forward(self, x):
         if self.data_format == "channels_last":
             return F.layer_norm(x, self.normalized_shape, self.weight, self.bias, self.eps)
         elif self.data_format == "channels_first":
-            u = x.mean(1, keepdim=True)
-            s = (x - u).pow(2).mean(1, keepdim=True)
-            x = (x - u) / torch.sqrt(s + self.eps)
+            dtype = x.dtype
+            x_float = x.float()
+            u = x_float.mean(1, keepdim=True)
+            s = (x_float - u).pow(2).mean(1, keepdim=True)
+            x = (x_float - u) / torch.sqrt(s + self.eps)
+            x = x.to(dtype)
             x = self.weight[:, None, None, None] * x + self.bias[:, None, None, None]
-
             return x
 
 class MambaLayer(nn.Module):
