@@ -135,14 +135,22 @@ class FFParser_n(nn.Module):
         x = torch.fft.rfftn(x, dim=(2, 3, 4), norm="ortho")
         weight = torch.view_as_complex(self.complex_weight.clone())
         max_mag = weight.abs().amax()
+        if not torch.isfinite(max_mag):
+            raise ValueError("FFParser_n weight contains NaN/Inf")
         weight = weight / max_mag.clamp_min(1.0)
         x = x * weight
         x = torch.fft.irfftn(x, s=(H, W, D), dim=(2, 3, 4), norm="ortho")
+        x = torch.nan_to_num(x)
 
         x = x.reshape(B, C, H, W, D)
 
         with torch.no_grad():
             max_mag = self.complex_weight.abs().max()
+            if not torch.isfinite(max_mag):
+                self.complex_weight.data = torch.nan_to_num(
+                    self.complex_weight.data, nan=0.0, posinf=1.0, neginf=-1.0
+                )
+                max_mag = self.complex_weight.abs().max()
             self.complex_weight.div_(max_mag.clamp(min=1.0))
 
         return x
