@@ -90,9 +90,15 @@ class MambaLayer(nn.Module):
 
         if self.pos_embed is not None:  
             x_flat = x_flat + self.pos_embed    
-        x_norm = self.norm(x_flat)
-        x_mamba = self.norm1(self.mamba(x_norm))
-        x_spatial = self.norm2(self.mamba(self.mlp(x_norm.transpose(-1, -2).reshape(B, C, *img_dims)).reshape(B, C, n_tokens).transpose(-1, -2)))
+        x_norm = self.norm(x_flat.float()).type_as(x_flat)
+        x_mamba = self.norm1(self.mamba(x_norm).float()).type_as(x_norm)
+        x_spatial = self.norm2(
+            self.mamba(
+                self.mlp(
+                    x_norm.transpose(-1, -2).reshape(B, C, *img_dims)
+                ).reshape(B, C, n_tokens).transpose(-1, -2)
+            ).float()
+        ).type_as(x_norm)
 
         out = x_flat + self.gamma * (x_mamba + x_spatial)
         out = out.transpose(-1, -2).reshape(B, C, *img_dims)
@@ -170,11 +176,13 @@ class Spectral_Layer(nn.Module):
         # print(x.shape,'shape')
 
         x_reshape = x.reshape(B, C, n_tokens).transpose(-1, -2)
-        norm1_x = self.norm1(x_reshape)
+        norm1_x = self.norm1(x_reshape.float()).type_as(x_reshape)
         norm1_x = norm1_x.reshape(B, C, *img_dims)
         x_fft = self.ffp_module(norm1_x)
         # print(x_fft.shape, 'xfft')
-        norm2_x_fft = self.norm2(x_fft.reshape(B, C, n_tokens).transpose(-1, -2))
+        norm2_x_fft = self.norm2(
+            x_fft.reshape(B, C, n_tokens).transpose(-1, -2).float()
+        ).type_as(x_fft)
         x_spatial = self.mlp(norm2_x_fft.transpose(-1, -2).reshape(B, C, *img_dims))
         out_all = x + x_spatial
         new_out = out_all.transpose(-1, -2).reshape(B, C, *img_dims)
