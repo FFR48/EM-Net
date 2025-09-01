@@ -133,6 +133,7 @@ class FFParser_n(nn.Module):
         # x = x.view(B, a, b, C)
         x = x.to(torch.float32)
         x = torch.fft.rfftn(x, dim=(2, 3, 4), norm="ortho")
+        self.complex_weight.data = torch.nan_to_num(self.complex_weight.data)
         weight = torch.view_as_complex(self.complex_weight.clone())
         max_mag = weight.abs().amax()
         weight = weight / max_mag.clamp_min(1.0)
